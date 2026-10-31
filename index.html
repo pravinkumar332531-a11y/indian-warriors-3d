@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Indian Warriors Battle 3D</title>
+<style>
+:root{--gold:#f5c76c;--glass:#101820d9}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:#fff;font-family:system-ui,Arial;touch-action:none}canvas{display:block;width:100%;height:100%;touch-action:none}#hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 2px 3px #000} .panel{background:var(--glass);border:1px solid #f5c76c99;border-radius:12px;padding:8px 12px;box-shadow:0 0 18px #0008;font-weight:700}#top{position:absolute;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;font-size:12px}#healthWrap{height:9px;width:140px;background:#552a2a;border-radius:8px;overflow:hidden;margin-top:5px;border:1px solid #ffffff66}#health{height:100%;width:100%;background:linear-gradient(90deg,#ff3030,#ffc04a);transition:width .15s}#hint{position:absolute;top:74px;left:50%;transform:translateX(-50%);font-size:11px;text-align:center;white-space:nowrap;color:#fff;background:#101820a8;padding:6px 9px;border-radius:9px}#joystick{pointer-events:auto;position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:18px;width:126px;height:126px;border-radius:50%;border:2px solid #ffffff77;background:#d5d5d522;touch-action:none}#stick{position:absolute;left:36px;top:36px;width:50px;height:50px;border-radius:50%;background:#f2c66ddd;border:2px solid white;box-shadow:0 0 14px #ffcb61}#buttons{pointer-events:auto;position:absolute;bottom:max(14px,env(safe-area-inset-bottom));right:12px;display:grid;grid-template-columns:repeat(3,60px);gap:6px}button{color:#fff;font-weight:850;border:2px solid var(--gold);background:#5d2d1cdd;border-radius:50%;width:60px;height:60px;font-size:10px;box-shadow:0 4px 14px #0008;touch-action:manipulation;user-select:none}button:active{transform:scale(.94);background:#a34c21}#start,#over{pointer-events:auto;position:absolute;inset:0;background:linear-gradient(#10151ad9,#10151af2);display:flex;align-items:center;justify-content:center;text-align:center;padding:18px}#over{display:none;background:#090d10c9}.card{max-width:470px;border:1px solid var(--gold);border-radius:20px;padding:22px;background:#172027f5;box-shadow:0 0 35px #d99a3333}h1{color:var(--gold);line-height:1.02;margin:0 0 12px;font-size:clamp(28px,7vw,44px)}.mainbtn{border-radius:12px;width:auto;height:auto;padding:13px 26px;font-size:16px;margin-top:10px;background:#8d301e}.small{font-size:12px;color:#d5dbe0;line-height:1.5}#fullscreen{pointer-events:auto;position:absolute;right:10px;top:116px;width:auto;height:auto;border-radius:9px;padding:7px 10px;font-size:11px;background:#182d36cc}#toast{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:24px;font-weight:900;color:#ffe08a;opacity:0;transition:opacity .2s;text-align:center}#hitflash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,#b10d18aa 100%);opacity:0;transition:opacity .12s;z-index:5} @media(min-width:800px){#joystick{left:30px;bottom:28px}#buttons{right:28px;bottom:28px;grid-template-columns:repeat(3,68px)}button{width:68px;height:68px;font-size:11px}#top{font-size:14px}#fullscreen{top:130px}}
+</style>
+</head><body>
+<div id="hitflash"></div><div id="hud"><div id="top"><div class="panel">⚔️ INDIAN WARRIORS 3D<br><small id="status">Battle ready</small><div id="healthWrap"><div id="health"></div></div></div><div class="panel">Enemies: <span id="enemies">10</span><br>Eliminated: <span id="kills">0</span><br>🏹 Arrows: <span id="arrows">30</span></div></div><div id="hint">Move: joystick · Camera: drag · Loot: walk near crates · Horse: RIDE · Attack / Bow / Jump / Heal</div><button id="fullscreen">⛶ FULL SCREEN</button><div id="joystick"><div id="stick"></div></div><div id="buttons"><button id="attack">⚔️<br>ATTACK</button><button id="bow">🏹<br>BOW</button><button id="jump">⬆️<br>JUMP</button><button id="heal">✚<br>HEAL</button><button id="horseBtn">🐎<br>RIDE</button></div><div id="toast"></div>
+<div id="start"><div class="card"><h1>INDIAN<br>WARRIORS BATTLE 3D</h1><p>🏰 Ancient India · Third-person camera · Survival battle</p><p class="small">Detailed stylized 3D ancient Indian warrior, grass-and-dirt terrain, stone fort with a wide gate, palace doorway, wall collision for players and enemies, collectible loot crates, a rideable horse that runs while moving and stops when you stop, bow-fire animation, red non-graphic damage sparks, shadows and third-person camera. Single-player demo; online multiplayer and production-level graphics are not included.</p><button class="mainbtn" id="play">START BATTLE</button><p class="small">Phone ko landscape mode mein rakho. Internet required hai to load the 3D engine.</p></div></div><div id="over"><div class="card"><h1 id="overTitle">BATTLE OVER</h1><p id="overText">Try again!</p><button class="mainbtn" id="restart">PLAY AGAIN</button></div></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+const $=id=>document.getElementById(id);let scene,camera,renderer,clock,player,playerParts=[],enemies=[],arrows=[],effects=[],lootBoxes=[],keys={},started=false,ended=false,kills=0,health=100,arrowCount=30,healCount=3,attackCd=0,bowCd=0,jumpV=0,onGround=true,moveX=0,moveY=0,camYaw=0,camPitch=.25,dragging=false,lastX=0,lastY=0,worldLimit=95,blockers=[],roundBlockers=[],wallMeshes=[],cameraRaycaster=new THREE.Raycaster(),horse,mounted=false;
+const mat=(color,roughness=.85,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
+const M={grass:mat(0x657a43),grass2:mat(0x52683a),dirt:mat(0x9b7950),stone:mat(0x827c70),darkStone:mat(0x4d514e),gold:mat(0xd7a746,.45,.3),red:mat(0x8d2c20),blue:mat(0x294c75),skin:mat(0xb98255),wood:mat(0x654021),leaf:mat(0x2d5935),leaf2:mat(0x4b783b),water: new THREE.MeshStandardMaterial({color:0x357b9b,roughness:.25,metalness:.15,transparent:true,opacity:.88}),sand:mat(0xb7a06b),black:mat(0x282b2a)};
+function box(parent,w,h,d,material,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function cyl(parent,rt,rb,h,material,x,y,z,seg=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function worldBox(w,h,d,material,x,y,z){const o=box(scene,w,h,d,material,x,y,z);if(h>1&&w>.7&&d>.7){blockers.push({x,z,w,d});wallMeshes.push(o)}return o}
+function addRoundBlocker(x,z,r){roundBlockers.push({x,z,r})}
+function resolveWorldPosition(obj,radius=.48){for(let pass=0;pass<3;pass++){for(const b of blockers){const hx=b.w/2+radius,hz=b.d/2+radius,dx=obj.position.x-b.x,dz=obj.position.z-b.z;if(Math.abs(dx)<hx&&Math.abs(dz)<hz){const px=hx-Math.abs(dx),pz=hz-Math.abs(dz);if(px<pz)obj.position.x=b.x+Math.sign(dx||1)*hx;else obj.position.z=b.z+Math.sign(dz||1)*hz;}}for(const b of roundBlockers){const dx=obj.position.x-b.x,dz=obj.position.z-b.z,dist=Math.hypot(dx,dz),min=radius+b.r;if(dist<min){const n=dist||.001;obj.position.x=b.x+dx/n*min;obj.position.z=b.z+dz/n*min;}}}obj.position.x=THREE.MathUtils.clamp(obj.position.x,-worldLimit+radius,worldLimit-radius);obj.position.z=THREE.MathUtils.clamp(obj.position.z,-worldLimit+radius,worldLimit-radius)}
+function hitFlash(){const el=document.getElementById('hitflash');el.style.opacity='.9';clearTimeout(hitFlash.timer);hitFlash.timer=setTimeout(()=>el.style.opacity='0',150)}
+function makeWarrior(isPlayer=false){
+// Higher-detail procedural ancient Indian warrior model. All parts are native 3D meshes.
+const g=new THREE.Group();
+const armor=mat(isPlayer?0x254d69:0x7c2b22,.42,.24), cloth=mat(isPlayer?0x153449:0x4f1c19,.9),
+bronze=mat(0xc99745,.32,.62), steel=mat(0xc6d1d7,.24,.78), leather=mat(0x4b2b19,.86),
+skin=mat(isPlayer?0xb87c55:0x9e6748,.8), dark=mat(0x201c19,.9), ivory=mat(0xe7d7b4,.65), gold=mat(0xe2b95e,.3,.65);
+const sphere=(parent,rx,ry,rz,material,x,y,z,seg=16)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(1,seg,Math.max(8,Math.floor(seg*.7))),material);o.scale.set(rx,ry,rz);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o};
+const capsule=(parent,r,len,material,x,y,z,rot=0)=>{const o=new THREE.Mesh(new THREE.CapsuleGeometry(r,len,4,10),material);o.position.set(x,y,z);o.rotation.z=rot;o.castShadow=true;o.receiveShadow=true;parent.add(o);return o};
+const torus=(parent,r,t,material,x,y,z,rx=Math.PI/2)=>{const o=new THREE.Mesh(new THREE.TorusGeometry(r,t,8,24),material);o.position.set(x,y,z);o.rotation.x=rx;o.castShadow=true;parent.add(o);return o};
+// Feet, calves and shaped traditional trousers
+sphere(g,.18,.11,.29,leather,-.19,.12,.08);sphere(g,.18,.11,.29,leather,.19,.12,.08);
+const legL=capsule(g,.105,.35,skin,-.19,.36,0),legR=capsule(g,.105,.35,skin,.19,.36,0);
+sphere(g,.15,.31,.16,cloth,-.19,.49,0);sphere(g,.15,.31,.16,cloth,.19,.49,0);
+// Layered dhoti panels and pleats
+sphere(g,.32,.32,.23,cloth,0,.63,0,18);
+for(let i=-2;i<=2;i++){const pleat=box(g,.075,.42,.035,i%2?armor:cloth,i*.085,.49,.205);pleat.rotation.z=i*.06}
+// torso anatomy under detailed cuirass
+sphere(g,.34,.43,.205,cloth,0,1.17,0,18);
+sphere(g,.355,.31,.22,armor,0,1.27,.02,18);
+// overlapping metal scales / lamellar plates
+for(let row=0;row<4;row++)for(let col=-2;col<=2;col++){
+ const x=col*.125,y=.99+row*.145;
+ const plate=sphere(g,.073,.09,.035,(row+col)%3===0?gold:bronze,x,y,.211,10);plate.rotation.z=col*.04;
+}
+// shoulder mantle and upper-arm joints
+sphere(g,.19,.16,.19,bronze,-.39,1.49,0);sphere(g,.19,.16,.19,bronze,.39,1.49,0);
+const armL=capsule(g,.09,.32,armor,-.46,1.25,0,-.17),armR=capsule(g,.09,.32,armor,.46,1.25,0,.17);
+sphere(g,.095,.105,.105,skin,-.48,1.03,.035);sphere(g,.095,.105,.105,skin,.48,1.03,.035);
+// bracers with raised metal rims
+capsule(g,.105,.13,leather,-.49,.96,.03,-.1);capsule(g,.105,.13,leather,.49,.96,.03,.1);
+torus(g,.105,.025,bronze,-.49,1.02,.03);torus(g,.105,.025,bronze,.49,1.02,.03);
+// neck and face with nose, eyes, brows, ears and curled moustache
+capsule(g,.09,.12,skin,0,1.61,0);
+sphere(g,.175,.22,.16,skin,0,1.79,.015,18);
+sphere(g,.045,.065,.025,skin,0,1.77,.168,10);
+sphere(g,.022,.018,.012,ivory,-.066,1.825,.157,10);sphere(g,.022,.018,.012,ivory,.066,1.825,.157,10);
+sphere(g,.011,.012,.008,dark,-.066,1.825,.169,8);sphere(g,.011,.012,.008,dark,.066,1.825,.169,8);
+box(g,.07,.025,.026,dark,-.067,1.858,.16);box(g,.07,.025,.026,dark,.067,1.858,.16);
+sphere(g,.025,.03,.025,skin,0,1.79,.19,10);
+sphere(g,.055,.035,.025,dark,-.048,1.718,.167,12).rotation.z=-.2;sphere(g,.055,.035,.025,dark,.048,1.718,.167,12).rotation.z=.2;
+sphere(g,.045,.035,.025,dark,0,1.685,.155,12);
+sphere(g,.045,.065,.045,skin,-.177,1.79,0,10);sphere(g,.045,.065,.045,skin,.177,1.79,0,10);
+// turban: rounded cloth crown, stacked wraps, headband and central jeweled crest
+sphere(g,.245,.17,.205,cloth,0,1.99,0,18);
+for(let j=0;j<4;j++){const band=torus(g,.205-j*.008,.027,j===2?gold:cloth,0,1.93+j*.055,0);band.scale.set(1.12,1,1)}
+sphere(g,.08,.11,.055,bronze,0,2.115,.17,12);sphere(g,.04,.06,.035,gold,0,2.13,.215,12);
+const plume=new THREE.Mesh(new THREE.ConeGeometry(.075,.27,9),gold);plume.position.set(.015,2.28,.015);plume.rotation.z=-.13;plume.castShadow=true;g.add(plume);
+// embossed chest medallion, belt and cloth sash
+sphere(g,.085,.085,.035,gold,0,1.27,.255,14);sphere(g,.04,.04,.02,steel,0,1.27,.286,10);
+box(g,.59,.075,.28,leather,0,.87,0);box(g,.16,.12,.035,gold,0,.87,.165);
+const sash=box(g,.115,.65,.045,redMaterial(isPlayer),-.16,1.22,.23);sash.rotation.z=-.38;
+// shield on left: layered wooden boss and metal rim
+const shieldMat=isPlayer?mat(0x8a642c,.45,.45):mat(0x583b28,.65,.25);
+const shield=new THREE.Mesh(new THREE.CylinderGeometry(.29,.29,.095,20),shieldMat);shield.position.set(-.66,1.23,.13);shield.rotation.x=Math.PI/2;shield.castShadow=true;g.add(shield);
+torus(g,.285,.025,bronze,-.66,1.23,.19);
+const boss=new THREE.Mesh(new THREE.SphereGeometry(.09,14,10),steel);boss.position.set(-.66,1.23,.205);boss.castShadow=true;g.add(boss);
+for(let a=0;a<8;a++){const angle=a*Math.PI/4;const rivet=sphere(g,.018,.018,.012,gold,-.66+Math.cos(angle)*.23,1.23+Math.sin(angle)*.23,.195,8)}
+// sword: leather hilt, ornate crossguard, long tapered-looking steel blade
+box(g,.065,.18,.065,leather,.65,.81,.07);box(g,.21,.045,.075,gold,.65,.91,.07).rotation.z=-.12;
+const sword=box(g,.07,.61,.025,steel,.65,1.22,.07);sword.rotation.z=-.22;
+const fuller=box(g,.012,.48,.008,ivory,.65,1.22,.087);fuller.rotation.z=-.22;
+const tip=new THREE.Mesh(new THREE.ConeGeometry(.049,.14,4),steel);tip.position.set(.72,1.59,.07);tip.rotation.z=-.22;tip.castShadow=true;g.add(tip);
+// back quiver, feathered arrows and bow silhouette
+box(g,.16,.48,.15,leather,.27,1.48,-.22).rotation.z=-.14;
+for(let i=0;i<4;i++){const shaft=box(g,.014,.4,.014,ivory,.21+i*.04,1.73,-.27);shaft.rotation.z=-.12;const f=sphere(g,.025,.055,.012,isPlayer?gold:bronze,.21+i*.04,1.94,-.27,8)}
+const bowCurve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(.37,1.14,-.3),new THREE.Vector3(.55,1.52,-.3),new THREE.Vector3(.37,1.9,-.3));const bow=new THREE.Mesh(new THREE.TubeGeometry(bowCurve,14,.022,6,false),leather);bow.castShadow=true;g.add(bow);
+g.userData={armL,armR,legL,legR,sword,shield,baseY:0,isPlayer,alive:true,hp:100,attack:0};return g}
+function redMaterial(isPlayer){return mat(isPlayer?0x9d3427:0x6b211c,.7)}
+
+function makeGroundMaterial(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.fillStyle='#667b43';ctx.fillRect(0,0,256,256);for(let i=0;i<3600;i++){const v=65+Math.random()*75;ctx.fillStyle=`rgba(${Math.floor(v*.75)},${Math.floor(v)},${Math.floor(v*.48)},${Math.random()*.24})`;ctx.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*3,1+Math.random()*3)}const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(9,9);tex.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshStandardMaterial({map:tex,color:0xffffff,roughness:1});}
+function makeDirtMaterial(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.fillStyle='#8c704d';ctx.fillRect(0,0,256,256);for(let i=0;i<5200;i++){const v=75+Math.random()*80;ctx.fillStyle=`rgba(${Math.floor(v*1.08)},${Math.floor(v*.83)},${Math.floor(v*.58)},${Math.random()*.32})`;ctx.beginPath();ctx.ellipse(Math.random()*256,Math.random()*256,1+Math.random()*5,.5+Math.random()*2,Math.random()*3,0,Math.PI*2);ctx.fill()}const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(2,18);tex.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshStandardMaterial({map:tex,roughness:1});}
+function addTree(x,z,scale=1){const g=new THREE.Group();cyl(g,.22*scale,.34*scale,1.7*scale,M.wood,0,.85*scale,0,10);for(let i=0;i<3;i++){const c=new THREE.Mesh(new THREE.IcosahedronGeometry((.82-i*.13)*scale,1),i%2?M.leaf:M.leaf2);c.position.y=(1.8+i*.58)*scale;c.castShadow=true;g.add(c)}g.position.set(x,0,z);scene.add(g);addRoundBlocker(x,z,.58*scale)}
+function addRock(x,z,s=1){const o=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),M.stone);o.position.set(x,s*.45,z);o.rotation.set(Math.random(),Math.random(),Math.random());o.castShadow=true;scene.add(o);addRoundBlocker(x,z,s*.72)}
+function buildWorld(){blockers=[];roundBlockers=[];wallMeshes=[];scene=new THREE.Scene();scene.background=new THREE.Color(0xb4cbd5);scene.fog=new THREE.Fog(0xb4cbd5,72,190);scene.add(new THREE.HemisphereLight(0xe9f4ff,0x554333,2.35));scene.add(new THREE.AmbientLight(0xffffff,.28));const sun=new THREE.DirectionalLight(0xffe6bf,3.5);sun.position.set(-40,70,30);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-0.00025;sun.shadow.normalBias=.025;sun.shadow.radius=3;sun.shadow.camera.left=-110;sun.shadow.camera.right=110;sun.shadow.camera.top=110;sun.shadow.camera.bottom=-110;scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,220,1,1),makeGroundMaterial());ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+// broad dirt roads
+const road=new THREE.Mesh(new THREE.PlaneGeometry(16,220),makeDirtMaterial());road.rotation.x=-Math.PI/2;road.position.set(0,.015,0);scene.add(road);const road2=new THREE.Mesh(new THREE.PlaneGeometry(220,13),makeDirtMaterial());road2.rotation.x=-Math.PI/2;road2.position.set(0,.02,20);scene.add(road2);
+// river and bridges
+const river=new THREE.Mesh(new THREE.PlaneGeometry(220,9),M.water);river.rotation.x=-Math.PI/2;river.position.set(0,.035,-35);scene.add(river);for(let x of [-5,5]){box(scene,1,.15,12,M.wood,x,.16,-35)}
+// Fort walls with a wide, real gate opening on the south side. Solid wall segments have collision.
+worldBox(38,2.8,2.2,M.stone,0,1.4,7);worldBox(12.5,2.8,2.2,M.stone,-11.75,1.4,43);worldBox(12.5,2.8,2.2,M.stone,11.75,1.4,43);worldBox(2.2,2.8,36,M.stone,-18,1.4,25);worldBox(2.2,2.8,36,M.stone,18,1.4,25);
+for(let x of [-18,18])for(let z of [7,43]){cyl(scene,2.4,2.8,8,M.stone,x,4,z,8);cyl(scene,2.45,2.45,.45,M.gold,x,8.15,z,8);cyl(scene,.22,.22,2,M.gold,x,9.25,z,6);addRoundBlocker(x,z,1.9)}
+// Palace is a walk-in courtyard building with a proper doorway, not one giant solid block.
+worldBox(14,5.2,1,M.sand,0,2.6,10.5);worldBox(1,5.2,11,M.sand,-7,2.6,16);worldBox(1,5.2,11,M.sand,7,2.6,16);worldBox(4.8,5.2,1,M.sand,-4.6,2.6,21.5);worldBox(4.8,5.2,1,M.sand,4.6,2.6,21.5);box(scene,15,.65,12,M.red,0,5.35,16);
+for(let x of [-5,5]){cyl(scene,.45,.5,4.8,M.gold,x,2.4,22.6,8);addRoundBlocker(x,22.6,.42)}
+// Gate posts frame the opening without blocking the path.
+for(let x of [-5.6,5.6]){worldBox(.75,3.4,2.6,M.sand,x,1.7,43);cyl(scene,.55,.55,.35,M.gold,x,3.5,43,8)}
+// banners
+for(let x of [-10,10]){cyl(scene,.08,.1,5,M.wood,x,2.5,13,6);const flag=box(scene,1.5,.9,.06,M.red,x+.65,4.2,13);flag.rotation.z=.08}
+// huts, rocks, trees, bushes around map
+for(let i=0;i<80;i++){let x=(Math.random()-.5)*190,z=(Math.random()-.5)*190;if(Math.abs(x)<24&&z>2&&z<48)continue;if(Math.hypot(x,z-53)<12)continue;if(z>-41&&z<-29)continue;if(Math.abs(x)<10||Math.abs(z-20)<8)continue;if(Math.random()<.72)addTree(x,z,.65+Math.random()*.65);else addRock(x,z,.5+Math.random()*1.2)}
+for(let i=0;i<10;i++){let x=(Math.random()-.5)*150,z=(Math.random()-.5)*150;if(Math.abs(x)<25&&z>0&&z<50)continue;if(Math.hypot(x,z-53)<14)continue;const hut=new THREE.Group();box(hut,3,2.2,3,M.sand,0,1.1,0);const roof=new THREE.Mesh(new THREE.ConeGeometry(2.6,1.8,4),M.wood);roof.position.y=3;roof.rotation.y=Math.PI/4;hut.add(roof);hut.position.set(x,0,z);scene.add(hut);blockers.push({x,z,w:3.4,d:3.4})}
+// scattered stones mark arena boundaries
+for(let i=0;i<70;i++){let a=Math.random()*Math.PI*2,r=88+Math.random()*7;addRock(Math.cos(a)*r,Math.sin(a)*r,.7+Math.random()*1.4)}
+}
+function makeHorse(){
+ const g=new THREE.Group();
+ const coat=mat(0x70452d,.8),coatLight=mat(0x9a6740,.8),mane=mat(0x2c211b,.95),hoof=mat(0x292622,.8),leather=mat(0x4b2b19,.7),gold=mat(0xc99745,.4,.45);
+ const sph=(rx,ry,rz,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),m);o.scale.set(rx,ry,rz);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
+ // Horse body runs along Z; head points toward +Z.
+ sph(.48,.48,.92,coat,0,1.18,0);sph(.38,.43,.48,coatLight,0,1.27,.58);
+ const neck=sph(.29,.62,.32,coat,0,1.63,.66);neck.rotation.x=-.34;
+ sph(.25,.28,.3,coatLight,0,2.02,.88);sph(.2,.17,.24,coat,0,1.93,1.06);
+ sph(.045,.045,.035,hoof,-.19,2.08,.99);sph(.045,.045,.035,hoof,.19,2.08,.99);
+ // mane ridge and tail
+ for(let i=0;i<6;i++){let tuft=sph(.12,.16,.17,mane,0,1.94-i*.13,.66+i*.1);tuft.rotation.x=-.4}
+ const tail=sph(.13,.36,.13,mane,0,1.06,-.93);tail.rotation.x=-.45;
+ // saddle, blanket and girth
+ sph(.43,.13,.48,leather,0,1.57,-.02);sph(.45,.08,.48,mat(0x9a2920,.8),0,1.48,-.02);sph(.43,.06,.46,gold,0,1.43,-.02);
+ const legs=[];
+ for(const x of [-.29,.29])for(const z of [-.56,.59]){const leg=new THREE.Group();leg.position.set(x,.93,z);g.add(leg);const upper=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.43,4,8),coat);upper.position.y=-.19;upper.castShadow=true;leg.add(upper);const lower=new THREE.Mesh(new THREE.CapsuleGeometry(.07,.35,4,8),coatLight);lower.position.set(0,-.52,.025);lower.castShadow=true;leg.add(lower);const h=new THREE.Mesh(new THREE.BoxGeometry(.16,.12,.19),hoof);h.position.set(0,-.76,.055);h.castShadow=true;leg.add(h);legs.push(leg)}
+ // bridle and reins
+ const bridle=new THREE.Mesh(new THREE.TorusGeometry(.24,.035,8,20),leather);bridle.position.set(0,1.95,1.02);bridle.rotation.x=Math.PI/2;g.add(bridle);
+ g.userData={legs,walkTime:0};return g;
+}
+function spawnLootBoxes(){
+ lootBoxes=[];
+ const spots=[[-8,35],[9,31],[-29,12],[28,3],[-36,-14],[31,-27],[6,-48],[-48,39],[48,49],[0,72]];
+ for(let i=0;i<spots.length;i++){const [x,z]=spots[i],g=new THREE.Group();const wood=mat(0x654021,.9),trim=mat(0xd5a33e,.4,.45),dark=mat(0x342219,.9);box(g,1.05,.72,.82,wood,0,.38,0);box(g,1.12,.1,.88,trim,0,.76,0);box(g,.16,.78,.9,trim,0,.4,.01);box(g,.96,.09,.9,dark,0,.83,0);for(const xx of [-.43,.43])for(const yy of [.18,.58]){const riv=cyl(g,.035,.035,.025,trim,xx,yy,.43,8);riv.rotation.x=Math.PI/2}g.position.set(x,0,z);g.rotation.y=(i%4)*.4;scene.add(g);lootBoxes.push({group:g,opened:false,index:i})}
+}
+function collectLoot(boxItem){if(boxItem.opened)return;boxItem.opened=true;scene.remove(boxItem.group);const type=boxItem.index%3;if(type===0){arrowCount+=15;toast('📦 LOOT: +15 ARROWS')}else if(type===1){healCount++;health=Math.min(100,health+20);toast('📦 LOOT: MEDKIT +1')}else{arrowCount+=8;healCount++;toast('📦 LOOT: ARROWS +8 · MEDKIT +1')}updateHud();}
+function toggleHorse(){if(!started||ended)return;if(!mounted){if(player.position.distanceTo(new THREE.Vector3(horse.position.x,player.position.y,horse.position.z))>4){toast('HORSE IS TOO FAR');return}mounted=true;horse.position.set(player.position.x,0,player.position.z);player.position.y=1.38;toast('🐎 MOUNTED — move to ride')}else{mounted=false;player.position.y=0;player.position.x+=.9;resolveWorldPosition(player,.72);toast('DISMOUNTED')} $('horseBtn').innerHTML=mounted?'🧍<br>EXIT':'🐎<br>RIDE';}
+function init(){renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;document.body.prepend(renderer.domElement);clock=new THREE.Clock();buildWorld();camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,300);player=makeWarrior(true);player.position.set(0,0,53);scene.add(player);horse=makeHorse();horse.position.set(2,0,53);scene.add(horse);spawnLootBoxes();for(let i=0;i<10;i++){let e=makeWarrior(false);let a=i/10*Math.PI*2;let r=27+Math.random()*30;e.position.set(Math.cos(a)*r,0,Math.sin(a)*r+10);resolveWorldPosition(e,.72);e.rotation.y=Math.random()*6.28;scene.add(e);enemies.push(e)}setupControls();window.addEventListener('resize',resize);updateHud();animate()}
+function resize(){if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
+function setupControls(){const joy=$('joystick'),stick=$('stick');function setJoy(e){const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,l=Math.hypot(dx,dy),max=42;if(l>max){dx=dx/l*max;dy=dy/l*max}stick.style.left=(36+dx)+'px';stick.style.top=(36+dy)+'px';moveX=dx/max;moveY=dy/max}joy.addEventListener('pointerdown',e=>{joy.setPointerCapture(e.pointerId);setJoy(e)});joy.addEventListener('pointermove',e=>{if(e.buttons||e.pressure)setJoy(e)});function resetJoy(){moveX=moveY=0;stick.style.left='36px';stick.style.top='36px'}joy.addEventListener('pointerup',resetJoy);joy.addEventListener('pointercancel',resetJoy);
+$('horseBtn').addEventListener('pointerdown',e=>{e.preventDefault();toggleHorse()});$('attack').addEventListener('pointerdown',e=>{e.preventDefault();doAttack()});$('bow').addEventListener('pointerdown',e=>{e.preventDefault();shootArrow()});$('jump').addEventListener('pointerdown',e=>{e.preventDefault();if(onGround&&started&&!ended){jumpV=7.5;onGround=false}});$('heal').addEventListener('pointerdown',e=>{e.preventDefault();if(started&&!ended&&healCount>0&&health<100){healCount--;health=Math.min(100,health+38);toast('HEALTH +38');updateHud()}});$('play').onclick=()=>{started=true;$('start').style.display='none';toast('BATTLE START!')};$('restart').onclick=()=>location.reload();$('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(e){}toast('FULL SCREEN ON')}catch(e){toast('Chrome menu se Add to Home screen try karo')}};
+window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key===' '&&onGround){jumpV=7.5;onGround=false}if(e.key.toLowerCase()==='j')doAttack();if(e.key.toLowerCase()==='k')shootArrow()});window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX>innerWidth*.34&&e.clientY<innerHeight-155){dragging=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)}});renderer.domElement.addEventListener('pointermove',e=>{if(dragging){camYaw-=(e.clientX-lastX)*.006;camPitch=Math.max(-.05,Math.min(.7,camPitch+(e.clientY-lastY)*.003));lastX=e.clientX;lastY=e.clientY}});renderer.domElement.addEventListener('pointerup',()=>dragging=false);renderer.domElement.addEventListener('pointercancel',()=>dragging=false);
+}
+function nearestEnemy(maxDist=4.2){let best=null,bd=maxDist;for(const b of lootBoxes){if(!b.opened&&Math.hypot(player.position.x-b.group.position.x,player.position.z-b.group.position.z)<2.4)collectLoot(b)}
+for(const e of enemies){if(!e.userData.alive)continue;const d=e.position.distanceTo(player.position);if(d<bd){bd=d;best=e}}return best}
+function doAttack(){if(!started||ended||attackCd>0)return;attackCd=.58;player.userData.attack=.3;const e=nearestEnemy(4.4);if(e){e.userData.hp-=35;e.userData.attack=.22;makeBurst(e.position,0xffd16a);makeHitSparks(e.position);if(e.userData.hp<=0)killEnemy(e)}else toast('SWORD SWING')}
+function shootArrow(){if(!started||ended||bowCd>0||arrowCount<=0)return;bowCd=.42;arrowCount--;player.userData.shoot=.32;updateHud();let dir=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);const target=nearestEnemy(30);if(target){dir=target.position.clone().sub(player.position).setY(.1).normalize()}const mesh=box(scene,.08,.08,.85,M.gold,player.position.x+dir.x*.9,player.position.y+1.35,player.position.z+dir.z*.9);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir);arrows.push({mesh,dir,life:1.5,damage:45});toast('ARROW!')}
+function killEnemy(e){e.userData.alive=false;scene.remove(e);kills++;makeBurst(e.position,0xff673f);updateHud();if(enemies.every(x=>!x.userData.alive)){endGame(true)}}
+function makeHitSparks(pos){const colors=[0xb51f2a,0xd93b35,0x8e1820];for(let i=0;i<5;i++){const o=new THREE.Mesh(new THREE.SphereGeometry(.055+Math.random()*.035,6,5),new THREE.MeshBasicMaterial({color:colors[i%colors.length],transparent:true,opacity:.9}));o.position.set(pos.x+(Math.random()-.5)*.65,pos.y+.8+Math.random()*.9,pos.z+(Math.random()-.5)*.65);scene.add(o);effects.push({o,life:.22+Math.random()*.15,max:.35,vy:.7+Math.random()*1.3})}}
+function makeBurst(pos,color){const geo=new THREE.SphereGeometry(.16,8,6),m=new THREE.MeshBasicMaterial({color,transparent:true});const o=new THREE.Mesh(geo,m);o.position.copy(pos);o.position.y+=1;scene.add(o);effects.push({o,life:.35,max:.35})}
+function toast(s){const t=$('toast');t.textContent=s;t.style.opacity=1;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.style.opacity=0,650)}
+function updateHud(){$('health').style.width=health+'%';$('enemies').textContent=enemies.filter(e=>e.userData.alive).length;$('kills').textContent=kills;$('arrows').textContent=arrowCount;$('status').textContent=health>65?'Warrior ready':health>30?'Warning: low health':'Critical health'}
+function endGame(win){ended=true;$('over').style.display='flex';$('overTitle').textContent=win?'VICTORY!':'DEFEATED';$('overText').textContent=win?'You are the champion of the fort!':'Your warrior has fallen. Try another battle.'}
+function animate(){requestAnimationFrame(animate);if(!renderer)return;const dt=Math.min(clock.getDelta(),.04);if(started&&!ended)updateGame(dt);renderer.render(scene,camera)}
+function updateGame(dt){attackCd=Math.max(0,attackCd-dt);bowCd=Math.max(0,bowCd-dt);if(player.userData.attack>0)player.userData.attack-=dt;if(player.userData.shoot>0)player.userData.shoot-=dt;
+let mx=moveX,my=moveY;if(keys.a||keys.arrowleft)mx=-1;if(keys.d||keys.arrowright)mx=1;if(keys.w||keys.arrowup)my=-1;if(keys.s||keys.arrowdown)my=1;let v=new THREE.Vector3(mx,0,my);if(v.length()>1)v.normalize();const camForward=new THREE.Vector3(-Math.sin(camYaw),0,-Math.cos(camYaw)),camRight=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw));const dir=camRight.multiplyScalar(v.x).add(camForward.multiplyScalar(-v.z));if(dir.lengthSq()>.01){dir.normalize();player.position.addScaledVector(dir,(mounted?12.5:7.2)*dt);resolveWorldPosition(player,.72);player.rotation.y=Math.atan2(dir.x,dir.z);}
+if(mounted){player.position.y=1.38;horse.position.set(player.position.x,0,player.position.z);horse.rotation.y=player.rotation.y;horse.userData.walkTime+=dt*(v.length()>.1?10:0);for(let i=0;i<horse.userData.legs.length;i++){const leg=horse.userData.legs[i];leg.rotation.x=v.length()>.1?Math.sin(horse.userData.walkTime+(i%2)*Math.PI+(i>1?Math.PI:0))*.55:0;}player.userData.legL.rotation.x=0;player.userData.legR.rotation.x=0;player.userData.armL.rotation.x=0;}else{player.position.y+=jumpV*dt;if(!onGround){jumpV-=18*dt;if(player.position.y<=0){player.position.y=0;jumpV=0;onGround=true}}const t=performance.now()*.009;player.userData.legL.rotation.x=v.length()>.1?Math.sin(t)*.65:0;player.userData.legR.rotation.x=v.length()>.1?-Math.sin(t)*.65:0;player.userData.armL.rotation.x=v.length()>.1?-Math.sin(t)*.3:0;}player.userData.armR.rotation.x=player.userData.attack>0?-1.5:player.userData.shoot>0?-.85:0;player.userData.sword.rotation.z=player.userData.attack>0?-.9:0;
+for(const b of lootBoxes){if(!b.opened&&Math.hypot(player.position.x-b.group.position.x,player.position.z-b.group.position.z)<2.4)collectLoot(b)}
+for(const e of enemies){if(!e.userData.alive)continue;const delta=player.position.clone().sub(e.position);delta.y=0;const d=delta.length();if(d>2.1){delta.normalize();e.position.addScaledVector(delta, (d>4?2.2:1.2)*dt);resolveWorldPosition(e,.72);e.rotation.y=Math.atan2(delta.x,delta.z);e.userData.legL.rotation.x=Math.sin(t*1.1+e.position.x)*.4;e.userData.legR.rotation.x=-e.userData.legL.rotation.x}else if(Math.random()<dt*.65){health=Math.max(0,health-7);hitFlash();makeBurst(player.position,0xb51f2a);updateHud();if(health<=0)endGame(false)}}
+for(let i=arrows.length-1;i>=0;i--){const a=arrows[i];a.mesh.position.addScaledVector(a.dir,24*dt);a.life-=dt;let hit=null;for(const e of enemies){if(e.userData.alive&&a.mesh.position.distanceTo(new THREE.Vector3(e.position.x,e.position.y+1,e.position.z))<1.15){hit=e;break}}if(hit){hit.userData.hp-=a.damage;makeBurst(hit.position,0xffdf79);makeHitSparks(hit.position);if(hit.userData.hp<=0)killEnemy(hit);scene.remove(a.mesh);arrows.splice(i,1)}else if(a.life<=0){scene.remove(a.mesh);arrows.splice(i,1)}}
+for(let i=effects.length-1;i>=0;i--){let ef=effects[i];ef.life-=dt;if(ef.vy){ef.o.position.y+=ef.vy*dt;ef.vy-=3*dt}ef.o.scale.setScalar(1+(ef.max-ef.life)*5);ef.o.material.opacity=Math.max(0,ef.life/ef.max);if(ef.life<=0){scene.remove(ef.o);ef.o.geometry.dispose();ef.o.material.dispose();effects.splice(i,1)}}
+// third-person follow camera: behind the warrior, rotated by screen drag
+const target=new THREE.Vector3(player.position.x,player.position.y+1.3,player.position.z);const distance=8.5;const cp=Math.cos(camPitch),sp=Math.sin(camPitch);const offset=new THREE.Vector3(Math.sin(camYaw)*distance*cp,3.2+sp*distance,Math.cos(camYaw)*distance*cp);const desired=target.clone().add(offset);const rayDir=desired.clone().sub(target).normalize();cameraRaycaster.set(target,rayDir);cameraRaycaster.far=desired.distanceTo(target);const wallHit=cameraRaycaster.intersectObjects(wallMeshes,false)[0];if(wallHit)desired.copy(target).addScaledVector(rayDir,Math.max(1.15,wallHit.distance-.45));camera.position.lerp(desired,1-Math.pow(.001,dt));camera.lookAt(target);}
+init();
+</script></body></html>
